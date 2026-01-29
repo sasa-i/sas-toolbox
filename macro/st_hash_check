@@ -1,0 +1,36 @@
+%macro ST_HASHCHECK(_source = , _wh=, _key = ,_outvar = ) ;
+
+/*>>>>>----------
+
+    check the record exists in the [_source] dataset, and create the variable [_outvar.] in the dataset set in data step
+    create a numeric variable [_outvar.], set 1 if the record exists, and a missing if it dose not exists.
+
+    _source : Dataset use to check for exists
+    _wh     : where option use to check exist record in [_source] dataset 
+    _key    : Key variable[s] for check exist. there is a variable in both [_source] dataset and datastep dataset.
+    _outvar : numeric result variable: set 1 if the record exist in [_source], set missing if record is not exist
+
+ ----------<<<<<*/
+
+    %let _hsname = h&sysindex ;
+    %let _hskey = %sysfunc( tranwrd( %str("&_key") , %str( ) , %str(",") )) ;
+
+    if 0 then set &_source(keep = &_key ) ;
+    retain _n_&_hsname. 1 ;
+    if _n_&_hsname. = 1 then do ;
+
+        rc = dosubl( %unquote(%bquote( 'data __IN ; set &_source ; where &_wh. ; keep &_key ; run ;' )) ) ;
+        drop RC ;
+
+        declare hash &_hsname.(dataset:"__IN") ;
+            &_hsname..definekey(&_hskey) ;
+            &_hsname..definedone() ;
+
+        _n_&_hsname. = 0 ;
+    end ;
+
+    call missing(&_outvar.) ;
+    if &_hsname..check() = 0 then &_outvar. = 1 ;
+    drop _n_&_hsname. ;
+
+%mend ST_HASHCHECK ;
