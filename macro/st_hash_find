@@ -1,0 +1,37 @@
+
+%macro ST_HASHFIND(_source = , _wh=, _key = ,_var = ) ;
+
+/*>>>>>----------
+
+    Horizontal join using the find method of hash.
+    The source and destination datasets do not need to be sorted by key variables.
+
+    _source  : Dataset with external variable
+    _wh      : where option use 
+    _key     : Key variable[s]
+    _var     : External variable[s]
+
+ ----------<<<<<*/
+
+    %let _hsname = h&sysindex ;
+    %let _hskey = %sysfunc( tranwrd( %str("&_key") , %str( ) , %str(",") )) ;
+
+    if 0 then set &_source(keep = &_key &_var ) ;
+    retain _n_&_hsname. 1 ;
+    if _n_&_hsname. = 1 then do ;
+
+        rc = dosubl( %unquote(%bquote( 'data __IN ; set &_source ; where &_wh. ; keep &_key &_var ; run ;' )) ) ;   
+        drop RC ;
+
+        declare hash &_hsname.(dataset:"__IN" , duplicate:'E') ;
+            &_hsname..definekey(&_hskey) ;
+            &_hsname..definedata(all:'Y') ;
+            &_hsname..definedone() ;
+        
+        _n_&_hsname. = 0 ;
+    end ;
+
+    if &_hsname..find() ^= 0 then call missing(of &_var) ;
+    drop _n_&_hsname. ;
+
+%mend ST_HASHFIND ;
